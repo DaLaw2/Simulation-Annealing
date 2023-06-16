@@ -5,7 +5,7 @@ This repository contains a rust implementation of the Simulated Annealing (SA) a
 To compile and run this project, the following prerequisites are required:
 - __Rust__: The Rust programming language.
 - __Cargo__: The Rust package manager.
-- Other Rust packages including: `regex`, `rand`, calamine and `std`.
+- Other Rust packages including: `regex`, `rand`, `calamine` and `std`.
 ### Installation
 Clone the repository to your local machine:
 ```
@@ -36,7 +36,7 @@ The configuration file allows to tune the parameters of the SA algorithm:
 - `generation_method`: The method to generate the next solution. This can be `Swap` or `Reverse`.
 - `cooling_method`: The method for cooling. This can be `ExponentialMultiplicativeCooling`, `LogarithmicMultiplicativeCooling`, `LinearMultiplicativeCooling`, or `QuadraticMultiplicativeCooling`.
 ## Output
--  The program will produce an output text file with the following information:
+The program will produce an output text file with the following information:
 - The current iteration count.
 - The change in energy (ΔE).
 - The current temperature (T).
