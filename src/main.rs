@@ -1,8 +1,8 @@
 use std::env;
+use rand::Rng;
 use regex::Regex;
 use std::time::Instant;
 use rand::seq::SliceRandom;
-use rand::{Rng, thread_rng};
 use std::fs::{File, OpenOptions};
 use std::io::{BufRead, BufReader, Write};
 use calamine::{Reader, Xlsx, open_workbook};
@@ -59,10 +59,10 @@ fn get_args() -> ArgKind {
 }
 
 fn read_xlsx(input_path: String) -> Vec<Vec<f64>> {
-    let mut excel_data: Vec<Vec<f64>> = Vec::new();
-    let mut excel_file: Xlsx<_> = open_workbook(input_path).expect("Cannot open file.");
-    let sheet_name = excel_file.sheet_names().get(0).expect("No sheet found.").clone();
-    if let Some(Ok(sheet)) = excel_file.worksheet_range(sheet_name.as_str()) {
+    let mut xlsx_data: Vec<Vec<f64>> = Vec::new();
+    let mut xlsx_file: Xlsx<_> = open_workbook(input_path).expect("Cannot open file.");
+    let sheet_name = xlsx_file.sheet_names().get(0).expect("No sheet found.").clone();
+    if let Some(Ok(sheet)) = xlsx_file.worksheet_range(sheet_name.as_str()) {
         for row in sheet.rows() {
             let mut row_data: Vec<f64> = Vec::new();
             for col in row.iter() {
@@ -73,10 +73,10 @@ fn read_xlsx(input_path: String) -> Vec<Vec<f64>> {
                 };
                 row_data.push(col_data);
             }
-            excel_data.push(row_data);
+            xlsx_data.push(row_data);
         }
     }
-    excel_data
+    xlsx_data
 }
 
 fn read_config(config_path: String) -> ConfigKind {
@@ -88,7 +88,7 @@ fn read_config(config_path: String) -> ConfigKind {
         generation_method: GenerationMethod::Swap,
         cooling_method: CoolingMethod::ExponentialMultiplicativeCooling,
     };
-    let config_file = File::open(config_path).expect("Fail read config file");
+    let config_file = File::open(config_path).expect("Fail read config file.");
     let reader = BufReader::new(config_file);
     for line in reader.lines() {
         if let Ok(line) = line {
@@ -97,10 +97,10 @@ fn read_config(config_path: String) -> ConfigKind {
                 let key = parts[0];
                 let value = parts[1];
                 match key {
-                    "initial_temperature" => config.initial_temperature = value.parse::<f64>().expect("Wrong configuration."),
-                    "minimum_temperature" => config.minimum_temperature = value.parse::<f64>().expect("Wrong configuration."),
-                    "temperature_decay" => config.temperature_decay = value.parse::<f64>().expect("Wrong configuration."),
-                    "max_iterations" => config.max_iterations = value.parse::<usize>().expect("Wrong configuration."),
+                    "initial_temperature" => config.initial_temperature = value.parse::<f64>().expect("Invalid configuration."),
+                    "minimum_temperature" => config.minimum_temperature = value.parse::<f64>().expect("Invalid configuration."),
+                    "temperature_decay" => config.temperature_decay = value.parse::<f64>().expect("Invalid configuration."),
+                    "max_iterations" => config.max_iterations = value.parse::<usize>().expect("Invalid configuration."),
                     "generation_method" => config.generation_method = match value {
                         "Swap" => GenerationMethod::Swap,
                         "Insert" => GenerationMethod::Insert,
@@ -109,10 +109,10 @@ fn read_config(config_path: String) -> ConfigKind {
                             let regex = Regex::new(r"(\d+)-opt").unwrap();
                             if let Some(captures) = regex.captures(value) {
                                 if let Some(k) = captures.get(1) {
-                                    let k_value = k.as_str().parse::<usize>().expect("Wrong configuration.");
+                                    let k_value = k.as_str().parse::<usize>().expect("Invalid configuration.");
                                     GenerationMethod::Kopt(k_value)
                                 } else {
-                                    panic!("Unknown configuration.");
+                                    panic!("Invalid configuration.");
                                 }
                             } else {
                                 panic!("Unknown configuration.");
@@ -128,6 +128,8 @@ fn read_config(config_path: String) -> ConfigKind {
                     },
                     _ => panic!("Unknown configuration."),
                 }
+            } else {
+                panic!("Invalid configuration.")
             }
         }
     }
@@ -149,9 +151,6 @@ fn calc_points_distance(points: &Vec<Vec<f64>>) -> Vec<Vec<f64>> {
     let mut adjacency_matrix: Vec<Vec<f64>> = vec![vec![0.0; points.len()]; points.len()];
     for i in 0..points.len() {
         for j in (i+1)..points.len() {
-            if i == j {
-                continue
-            }
             let distance = euclidean_distance(&points[i], &points[j]);
             adjacency_matrix[i][j] = distance;
             adjacency_matrix[j][i] = distance;
@@ -161,15 +160,15 @@ fn calc_points_distance(points: &Vec<Vec<f64>>) -> Vec<Vec<f64>> {
 }
 
 fn initialize_solution(point_amount: usize) -> Vec<usize> {
-    let mut rng = thread_rng();
+    let mut rng = rand::thread_rng();
     let mut solution: Vec<usize> = (0..point_amount).collect();
     solution.shuffle(&mut rng);
     solution
 }
 
 fn swap(solution: &Vec<usize>) -> Vec<usize> {
-    let mut neighbor = solution.clone();
     let mut rng = rand::thread_rng();
+    let mut neighbor = solution.clone();
     let (point1, point2) = loop {
         let (i, j) = (rng.gen_range(0..solution.len()), rng.gen_range(0..solution.len()));
         if i == j {
@@ -188,11 +187,11 @@ fn insert(solution: &Vec<usize>) -> Vec<usize> {
 }
 
 fn reverse (solution: &Vec<usize>) -> Vec<usize> {
-    let mut neighbor = solution.clone();
     let mut rng = rand::thread_rng();
+    let mut neighbor = solution.clone();
     let (mut point1, mut point2) = loop {
         let (i, j) = (rng.gen_range(0..solution.len()), rng.gen_range(0..solution.len()));
-        if i == j || (if i > j {i-j} else {j-i}) < 2 {
+        if i == j {
             continue;
         } else {
             break (i, j);
@@ -215,7 +214,7 @@ fn calc_path_length(distance: &Vec<Vec<f64>>, solution: &Vec<usize>) -> f64 {
     for i in 0..(solution.len()-1) {
         length += distance[solution[i]][solution[i+1]];
     }
-    length += distance[distance.len()-1][0];
+    length += distance[solution[solution.len()-1]][solution[0]];
     length
 }
 
@@ -277,19 +276,18 @@ fn simulation_annealing(points: &Vec<Vec<f64>>, distance: &Vec<Vec<f64>>, config
     solution
 }
 
-fn write_result(output_path: String, output_message: &mut String) {
-    let mut output_file = match OpenOptions::new().read(true).write(true).truncate(true).create(true).open(&output_path) {
-        Ok(file) => file,
+fn write_result(output_path: String, output_message: &String) {
+    let mut output_file = match OpenOptions::new().read(true).write(true).create(true).truncate(true).open(&output_path) {
+        Ok(output_file) => output_file,
         Err(_) => panic!("Failed to open or create file."),
     };
-
     if let Err(e) = output_file.write_all(output_message.as_bytes()) {
-        panic!("Failed to write to file: {}", e);
+        panic!("Failed to write to file.\nReason: {}", e);
     }
 }
 
 fn main() {
-    let start = Instant::now();
+    let start_time = Instant::now();
     let args = get_args();
     let input_path = args.input.expect("Missing argument.");
     let output_path = args.output.expect("Missing argument.");
@@ -299,9 +297,9 @@ fn main() {
     let config = read_config(config_path);
     let distance = calc_points_distance(&points);
     let solution = simulation_annealing(&points, &distance, &config, &mut output_message);
-    let line: Vec<String> = solution.iter().map(|element| element.to_string()).collect();
-    output_message.push_str(&format!("{}\n", line.join(" ")));
+    let output_solution: Vec<String> = solution.iter().map(|point| point.to_string()).collect();
+    output_message.push_str(&format!("{}\n", output_solution.join(" ")));
     output_message.push_str(&format!("Path length = {}\n", calc_path_length(&distance, &solution)));
-    output_message.push_str(&format!("Cost time = {:?}\n", start.elapsed()));
-    write_result(output_path, &mut output_message);
+    output_message.push_str(&format!("Cost time = {:?}\n", start_time.elapsed()));
+    write_result(output_path, &output_message);
 }
