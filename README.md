@@ -9,7 +9,7 @@ To compile and run this project, the following prerequisites are required:
 ### Installation
 Clone the repository to your local machine:
 ```
-git clone https://github.com/<username>/<repository>.git
+git clone https://github.com/DaLaw2/Simulation-Annealing-Implement.git
 ```
 Navigate to the project directory:
 ```
