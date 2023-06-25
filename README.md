@@ -13,7 +13,7 @@ git clone https://github.com/DaLaw2/Simulation-Annealing-Implement.git
 ```
 Navigate to the project directory:
 ```
-cd simulated-annealing-rust
+cd Simulation-Annealing-Implement
 ```
 Build the project:
 ```
